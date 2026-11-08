@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Project Elysium</title>
+<style>
+:root{color-scheme:dark;--bg:#101820;--panel:#1a2833;--panel2:#223541;--line:#344b59;--text:#eef5f7;--muted:#a9bbc4;--accent:#76d6bd;--gold:#e8c77a}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#101820,#152631);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,sans-serif}
+header{padding:24px 18px 16px;border-bottom:1px solid var(--line);background:#111d26}
+header h1{margin:0;font-size:26px;letter-spacing:.08em}header p{margin:5px 0 0;color:var(--muted)}
+nav{display:flex;gap:8px;overflow:auto;padding:12px 14px;background:#14232d;position:sticky;top:0;z-index:2}
+button,select,input{font:inherit}button{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:10px 13px;border-radius:9px;cursor:pointer}
+button:hover{border-color:var(--accent)}button.primary{background:#236454;border-color:#398d78}button.danger{border-color:#965d5d;color:#ffd5d5}
+nav button{white-space:nowrap}.active{background:#2b514d;border-color:var(--accent)}
+main{max-width:1050px;margin:auto;padding:18px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:16px;margin-bottom:12px}
+.card h2,.card h3{margin:0 0 12px}.muted{color:var(--muted)}.big{font-size:27px;font-weight:700}.small{font-size:13px;color:var(--muted)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+select,input{background:#101c24;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px;max-width:100%}
+label{display:block;color:var(--muted);font-size:13px;margin:10px 0 5px}
+.item{padding:11px 0;border-bottom:1px solid var(--line)}.item:last-child{border:0}
+.hidden{display:none!important}.notice{padding:11px;border-left:3px solid var(--gold);background:#302b20;border-radius:7px;color:#f5e6bd}
+footer{padding:25px;text-align:center;color:var(--muted);font-size:12px}
+@media(max-width:500px){header h1{font-size:22px}main{padding:12px}.big{font-size:23px}}
+</style>
+</head>
+<body>
+<header><div class="row"><div><h1>PROJECT ELYSIUM</h1><p>A civilization simulation • private local saves</p></div><div class="small" id="saveLabel"></div></div></header>
+<nav id="nav"></nav><main id="app"></main><footer>Save data stays in this browser on this device. It is not uploaded or shared.</footer>
+<script>
+const KEY='elysium_saves_v1', ACTIVE='elysium_active_v1';
+const initial=()=>({id:crypto.randomUUID(),name:'Original Elysium',day:630,population:503,power:4.2,solar:3.5,geothermal:.7,battery:40,ironOre:420,copperOre:15,copperConcentrate:.8,refinedCopper:.67,limestone:600,clay:135,foodDays:42,history:[{day:630,text:'Geothermal power established; the colony reaches Day 630.'}],research:['Beneficial soil microbes','Nickel traces identified','Local clay suitable for fired-clay products'],infrastructure:['Water supply and treatment','Wastewater treatment','Agriculture','Storage facilities','Mining operations','Copper processing and refining','Electrical workshop','Geothermal power','Housing and public services']});
+let saves=loadSaves(), activeId=localStorage.getItem(ACTIVE)||saves[0].id, tab='Overview';
+function loadSaves(){try{let a=JSON.parse(localStorage.getItem(KEY));return Array.isArray(a)&&a.length?a:[initial()]}catch(e){return [initial()]}}
+function persist(){localStorage.setItem(KEY,JSON.stringify(saves));localStorage.setItem(ACTIVE,activeId)}
+function current(){return saves.find(s=>s.id===activeId)||saves[0]}
+if(!saves.length)saves=[initial()];
+if(!saves.some(s=>s.id===activeId))activeId=saves[0].id;
+persist();
+const tabs=['Overview','Resources','Infrastructure','Population','Research','Decisions','History','Saves'];
+function el(tag,attrs={},content=''){let n=document.createElement(tag);Object.entries(attrs).forEach(([k,v])=>n.setAttribute(k,v));n.innerHTML=content;return n}
+function render(){let s=current();document.getElementById('saveLabel').textContent=s.name+' • Day '+s.day;
+let nav=document.getElementById('nav');nav.innerHTML='';tabs.forEach(t=>{let b=el('button',{class:t===tab?'active':''},t);b.onclick=()=>{tab=t;render()};nav.append(b)});
+let a=document.getElementById('app');
+if(tab==='Overview')a.innerHTML=`<div class="row"><div><h2>Colony overview</h2><p class="muted">Current status at Day ${s.day}</p></div><button class="primary" onclick="tab='Decisions';render()">Plan next 60 days</button></div><div class="grid">${metric('Population',s.population,'residents')}${metric('Power generation',s.power.toFixed(2)+' MW','available capacity')}${metric('Battery storage',s.battery+' MWh','stored energy')}${metric('Food reserve',s.foodDays+' days','estimated supply')}</div><div class="card"><h3>Colony status</h3><p>Core utilities, food production, mining, metal processing and public services are operating. The next phase depends on the colony’s priorities.</p><div class="notice">Simulation note: future outcomes are estimates for gameplay, not real-world forecasts.</div></div>`;
+if(tab==='Resources')a.innerHTML=`<h2>Resources</h2><div class="grid">${metric('Iron ore',s.ironOre+' t','stored')}${metric('Copper ore',s.copperOre+' t','stored')}${metric('Copper concentrate',s.copperConcentrate+' t','stored')}${metric('Refined copper',s.refinedCopper+' t','stored')}${metric('Limestone',s.limestone+' t','stored')}${metric('Clay',s.clay+' t','stored')}${metric('Food reserve',s.foodDays+' days','estimated')}</div>`;
+if(tab==='Infrastructure')a.innerHTML=`<h2>Infrastructure</h2><div class="card">${s.infrastructure.map(x=>`<div class="item">✓ ${x}</div>`).join('')}</div>`;
+if(tab==='Population')a.innerHTML=`<h2>Population</h2><div class="card"><div class="big">${s.population.toLocaleString()}</div><p class="muted">Residents at Day ${s.day}</p><p>Population changes as housing, food, health services and employment develop.</p></div>`;
+if(tab==='Research')a.innerHTML=`<h2>Discoveries & research</h2><div class="card">${s.research.map(x=>`<div class="item">✦ ${x}</div>`).join('')}</div>`;
+if(tab==='Decisions')a.innerHTML=`<h2>Choose the next development priority</h2><p class="muted">Advance the simulation by 60 days. Each choice changes the colony’s resources and capabilities.</p><div class="grid">${choice('Agriculture','Improve food production and resilience.','agriculture')}${choice('Mining','Expand access to useful raw materials.','mining')}${choice('Energy','Improve power generation and storage.','energy')}${choice('Housing & services','Support population growth and quality of life.','housing')}${choice('Manufacturing','Expand tools, machinery and industrial capacity.','manufacturing')}</div>`;
+if(tab==='History')a.innerHTML=`<h2>Colony history</h2><div class="card">${[...s.history].reverse().map(h=>`<div class="item"><b>Day ${h.day}</b><br>${h.text}</div>`).join('')}</div>`;
+if(tab==='Saves')renderSaves(a);
+}
+function metric(t,v,d){return `<div class="card"><div class="muted">${t}</div><div class="big">${v}</div><div class="small">${d}</div></div>`}
+function choice(name,desc,key){return `<div class="card"><h3>${name}</h3><p class="muted">${desc}</p><button class="primary" onclick="advance('${key}')">Choose ${name}</button></div>`}
+function advance(kind){let s=current();s.day+=60;
+const outcomes={
+agriculture:()=>{s.foodDays+=18;s.population+=12;s.clay+=5;return 'Agricultural capacity expanded. Food reserves improved and the population grew modestly.'},
+mining:()=>{s.ironOre+=95;s.copperOre+=8;s.population+=6;return 'Mining operations expanded, increasing iron and copper ore stocks.'},
+energy:()=>{s.power+=.35;s.battery+=8;s.population+=5;return 'Energy infrastructure improved, adding generation capacity and battery storage.'},
+housing:()=>{s.population+=28;s.foodDays=Math.max(1,s.foodDays-5);s.clay+=12;return 'New housing and public services supported population growth, increasing food demand.'},
+manufacturing:()=>{s.refinedCopper+=.25;s.copperConcentrate+=.3;s.ironOre=Math.max(0,s.ironOre-20);return 'The workshop expanded production, consuming some iron ore and increasing refined copper output.'}};
+let msg=outcomes[kind]();s.foodDays=Math.max(1,Math.round(s.foodDays));s.history.push({day:s.day,text:msg});persist();tab='Overview';render()}
+function renderSaves(a){a.innerHTML=`<h2>Save manager</h2><div class="card"><p class="muted">Each save is separate and stored only in this browser.</p><label for="newName">Name for a new save</label><input id="newName" placeholder="e.g. Elysium - energy path"><div class="actions"><button class="primary" onclick="createSave()">Create new save</button><button onclick="exportCurrent()">Export current save</button><button onclick="document.getElementById('importFile').click()">Import save backup</button><input id="importFile" type="file" accept="application/json" class="hidden" onchange="importSave(this.files[0])"></div></div><div class="card"><h3>Your saves</h3>${saves.map(x=>`<div class="item"><div class="row"><div><b>${esc(x.name)}</b><div class="small">Day ${x.day} • Population ${x.population}${x.id===activeId?' • Current save':''}</div></div><div class="actions"><button onclick="switchSave('${x.id}')">Open</button><button onclick="renameSave('${x.id}')">Rename</button>${saves.length>1?`<button class="danger" onclick="deleteSave('${x.id}')">Delete</button>`:''}</div></div></div>`).join('')}</div>`}
+function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function createSave(){let name=document.getElementById('newName').value.trim()||'New Elysium';let copy=JSON.parse(JSON.stringify(current()));copy.id=crypto.randomUUID();copy.name=name;saves.push(copy);activeId=copy.id;persist();render()}
+function switchSave(id){activeId=id;persist();render()}
+function renameSave(id){let x=saves.find(s=>s.id===id),n=prompt('Enter a new save name:',x.name);if(n&&n.trim()){x.name=n.trim();persist();render()}}
+function deleteSave(id){let x=saves.find(s=>s.id===id);if(!confirm('Delete "'+x.name+'"? This cannot be undone.'))return;saves=saves.filter(s=>s.id!==id);if(activeId===id)activeId=saves[0].id;persist();render()}
+function exportCurrent(){let blob=new Blob([JSON.stringify(current(),null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=current().name.replace(/[^a-z0-9-_]/gi,'_')+'.json';a.click();URL.revokeObjectURL(url)}
+function importSave(file){if(!file)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.day||!x.population||!x.history)throw Error();x.id=crypto.randomUUID();x.name=(x.name||'Imported Elysium')+' (imported)';saves.push(x);activeId=x.id;persist();render()}catch(e){alert('That file does not look like a valid Elysium save.')}};r.readAsText(file)}
+render();
+</script></body></html>
